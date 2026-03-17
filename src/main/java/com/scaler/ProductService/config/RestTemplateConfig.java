@@ -16,3 +16,21 @@ public class RestTemplateConfig
  we are telling to spring, create bean of this conifguration calls and store into it inside spring container, so that we can reuse whenever required.
 
  */
+
+
+/*@Configuration
+public class SecurityConfig {
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
+        http
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.disable())
+                .authorizeHttpRequests(auth -> auth
+                        .anyRequest().permitAll()
+                );
+
+        return http.build();
+    }
+}*/

@@ -1,0 +1,387 @@
+we have 2 microservice comunicating with RestClient
+
+============================================================================================
+UserService-
+implement 1.user create api i.e /signup - email , name and password
+          2. user login . i.e /login, email, password if correct then login else not, in the response you will get token bcs we have implemented generatedToken in this api , as of now random token
+          3. implemented token valid or not, if valid then it shown as a response that particular user
+          4. also implemented logout functionality
+============================================================================================
+ProductService - from this service I am calling user service using restClient.getForObject("url")
+step1 - copied UserDto and role and removed entity annotaion bcs it is not an entity inside product service
+step2 - craeted helper class AuthCommon where i inject userService url which is running on another port
+step3 - i tested using postman http://localhost:8080/products/1 and used auth header and passed token which is comming from user service if token valid then return response as product if not then throwing 403
+
+=====================================================
+gpt -
+# Spring Boot Microservices – Authentication & Product Service (Interview Notes)
+
+These notes summarize the **microservices authentication system** I implemented. The goal was to understand **service-to-service communication and token-based access control**.
+
+---
+
+# 1. Overall Architecture
+
+I implemented **two independent microservices**:
+
+1️⃣ **UserService** – Handles authentication and user management
+2️⃣ **ProductService** – Handles product APIs and validates user access
+
+Both services run on **different ports** and communicate using **REST APIs via RestTemplate**.
+
+Example:
+
+UserService → `http://localhost:8082`
+ProductService → `http://localhost:8080`
+
+Flow:
+
+User → ProductService → UserService → Database
+
+ProductService **does not authenticate users directly**.
+Instead, it **calls UserService to validate tokens**.
+
+---
+
+# 2. UserService Implementation
+
+UserService is responsible for **user authentication and token management**.
+
+## 2.1 Signup API
+
+Endpoint:
+
+```
+POST /users/signup
+```
+
+Request Body:
+
+```
+email
+name
+password
+```
+
+Functionality:
+
+• Creates a new user
+• Saves user in database
+• Returns UserDto
+
+Purpose:
+
+Allows a new user to **register in the system**.
+
+---
+
+# 2.2 Login API
+
+Endpoint:
+
+```
+POST /users/login
+```
+
+Request:
+
+```
+email
+password
+```
+
+Functionality:
+
+1. Validate email and password
+2. If valid → generate token
+3. Store token in database
+4. Return token in response
+
+Example Response:
+
+```
+{
+ "value": "random_generated_token"
+}
+```
+
+Currently the token is **randomly generated**, but in production this would be **JWT**.
+
+Purpose:
+
+Token is used to **authenticate further API requests**.
+
+---
+
+# 2.3 Token Validation API
+
+Endpoint:
+
+```
+GET /users/validate/{token}
+```
+
+Functionality:
+
+1. Receive token
+2. Check token in database
+3. If token exists → return user
+4. If token invalid → return null
+
+Purpose:
+
+Allows **other microservices to verify if a user session is valid**.
+
+---
+
+# 2.4 Logout API
+
+Endpoint:
+
+```
+POST /users/logout
+```
+
+Functionality:
+
+• Receives token
+• Invalidates or deletes token from database
+
+Purpose:
+
+Terminates user session.
+
+---
+
+# 3. ProductService Implementation
+
+ProductService manages **product-related APIs**.
+
+Before returning product data, it **verifies the user token by calling UserService**.
+
+---
+
+# 4. Microservice Communication
+
+ProductService communicates with UserService using **RestTemplate**.
+
+Example call:
+
+```
+restTemplate.getForObject("http://localhost:8082/users/validate/{token}")
+```
+
+If token is valid → user details returned
+If token invalid → null returned
+
+---
+
+# 5. Steps Implemented in ProductService
+
+## Step 1 – DTO Copy
+
+Copied these classes from UserService:
+
+• UserDto
+• Role
+
+Removed:
+
+```
+@Entity
+```
+
+Reason:
+
+These are **not database entities in ProductService**, only used for **data transfer**.
+
+---
+
+## Step 2 – AuthCommons Helper Class
+
+Created helper class:
+
+```
+AuthCommons
+```
+
+Responsibilities:
+
+• Inject RestTemplate
+• Call UserService `/validate` API
+• Return UserDto
+
+Flow:
+
+ProductService → AuthCommons → UserService
+
+---
+
+## Step 3 – Product API Security
+
+Example Product API:
+
+```
+GET /products/{id}
+```
+
+Steps:
+
+1. Read token from request header
+
+```
+auth : <token>
+```
+
+2. Call validation API
+
+```
+AuthCommons.validateToken(token)
+```
+
+3. If valid → return product
+
+4. If invalid → return
+
+```
+HTTP 403 FORBIDDEN
+```
+
+---
+
+# 6. Postman Testing Flow
+
+Step 1 – Signup
+
+```
+POST /users/signup
+```
+
+Step 2 – Login
+
+```
+POST /users/login
+```
+
+Response:
+
+```
+token
+```
+
+Step 3 – Call Product API
+
+```
+GET http://localhost:8080/products/1
+```
+
+Header:
+
+```
+auth : token
+```
+
+If token valid → product returned
+If invalid → 403 Forbidden
+
+---
+
+# 7. Issues Faced During Development
+
+## Port Already Running
+
+Error:
+
+```
+Port already in use
+```
+
+Solution:
+
+```
+lsof -i :8082
+kill -9 <PID>
+```
+
+---
+
+## Infinite JSON Recursion
+
+Cause:
+
+Bi-directional relationship
+
+```
+Product → Category → Products → Category → ...
+```
+
+Solution:
+
+Used
+
+```
+@JsonIgnore
+```
+
+on `Category.products`.
+
+---
+
+# 8. Key Backend Concepts Demonstrated
+
+This implementation demonstrates:
+
+• Microservices communication
+• REST API based service-to-service calls
+• Token based authentication
+• DTO based communication
+• API security validation
+• Separation of concerns between services
+
+---
+
+# 9. How to Explain This in Interviews (30–40 sec answer)
+
+"I implemented two microservices: UserService and ProductService. UserService handles authentication including signup, login, token validation, and logout. When a user logs in, a token is generated and stored in the database.
+
+ProductService calls the UserService validate API before returning product data. It sends the token received in the request header to the UserService. If the token is valid, the user is authenticated and the product is returned. Otherwise, a 403 Forbidden response is sent.
+
+This approach demonstrates microservice communication and token-based authentication."
+
+---
+
+# 10. Improvements for Production Systems
+
+In real systems we would implement:
+
+• **JWT tokens instead of random tokens**
+
+• **Spring Security authentication filters**
+• **API Gateway for centralized authentication**
+• **Service discovery using Eureka**
+• **Feign Client instead of RestTemplate**
+
+===================================================
+next scaler lec
+now will implemenent jwt token so that we dont need to go database
+authorization server
+
+inside Userservice implemented
+
+1️⃣ Why do we use UserDetailsService?
+
+Answer (30 sec):
+
+UserDetailsService is a Spring Security interface responsible for loading user-specific data during authentication.
+which are then used by the authentication manager to validate credentials.
+
+2️⃣ Why password encoder is required?
+
+PasswordEncoder ensures passwords are stored securely using hashing algorithms like BCrypt instead of plain text. During login, Spring encodes the provided password and compares it with the stored encoded password.
+
+3️⃣ What does InMemoryUserDetailsManager do?
+
+It stores user details in memory instead of a database. It is typically used for testing or small applications.
+
+=======================================================================
+

@@ -1,20 +1,26 @@
 package com.scaler.ProductService.services;
 
-import com.scaler.ProductService.exception.ProductNotFound;
+import com.scaler.ProductService.exception.ProductNotFoundException;
 import com.scaler.ProductService.model.Product;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
 // it make more loosly coupled >> we should always implement services via interface
 public interface ProductService {
+    Product getProductById(Long id) throws ProductNotFoundException;
 
-   Product getProductById(Long id) throws ProductNotFound;
+   Page<Product> getAllProducts(int pageNumber, int pageSize);
 
-   List<Product> getAllProducts();
+    Product updateProduct(Long id, Product product) throws ProductNotFoundException;
 
-   Product replaceProduct(Long id, Product product);
+    Product replaceProduct(Long id, Product product) throws ProductNotFoundException;
 
-    Product deleteProduct(Long id);
+    //Page<Product> getAllProducts(int pageNumber, int pageSize);
 
-   Product updateProductPartially(Long id, Product product);
+    Product createProduct(Product product);
+
+    void deleteProduct(Long id);
+
+    void deleteProduct();
 }
